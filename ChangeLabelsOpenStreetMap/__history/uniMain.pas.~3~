@@ -1,0 +1,162 @@
+unit uniMain;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, XMLDoc, XMLIntf, AdvUtil, Vcl.Grids, AdvObj,
+  BaseGrid, AdvGrid, UAdvGridExcelImport;
+
+type
+  TfrmMain = class(TForm)
+    lblOSMFile: TLabel;
+    lblOSMPath: TLabel;
+    btnFileDialog: TButton;
+    btnChangeValues: TButton;
+    meoXMLRep: TMemo;
+    lblXMLCap: TLabel;
+    Label1: TLabel;
+    Label2: TLabel;
+    btnExcel: TButton;
+    lblIndexFrom: TLabel;
+    edtIndexFrom: TEdit;
+    AdvGridExcelImport1: TAdvGridExcelImport;
+    grdExcel: TAdvStringGrid;
+    procedure btnFileDialogClick(Sender: TObject);
+    procedure btnChangeValuesClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure btnExcelClick(Sender: TObject);
+  private
+    { Private-Deklarationen }
+    procedure ChangeTag(const filename: string);
+
+  public
+    { Public-Deklarationen }
+  end;
+
+var
+  frmMain: TfrmMain;
+
+implementation
+
+{$R *.dfm}
+
+procedure TfrmMain.btnChangeValuesClick(Sender: TObject);
+begin
+  ChangeTag(lblOSMPath.Caption);
+end;
+
+procedure TfrmMain.btnExcelClick(Sender: TObject);
+var
+  openDialog: topendialog;
+
+begin
+  try
+    openDialog:= TOpenDialog.Create(Self);
+    openDialog.InitialDir:= GetCurrentDir;
+    openDialog.Options:= [ofFileMustExist];
+    openDialog.Filter:= 'Excel Sheet|*.xlsx';
+    if openDialog.Execute then
+    begin
+      AdvGridExcelImport1.Import(openDialog.FileName);
+    end;
+
+  finally
+    openDialog.Free;
+  end;
+end;
+
+procedure TfrmMain.btnFileDialogClick(Sender: TObject);
+var
+  openDialog: topendialog;
+
+begin
+  try
+    openDialog:= TOpenDialog.Create(Self);
+    openDialog.InitialDir:= GetCurrentDir;
+    openDialog.Options:= [ofFileMustExist];
+    openDialog.Filter:= 'openstreetmap|*.osm';
+    if openDialog.Execute
+    then lblOSMPath.Caption:= openDialog.FileName;
+  finally
+    openDialog.Free;
+  end;
+end;
+
+procedure TfrmMain.ChangeTag(const filename: string);
+var
+  doc: IXMLDocument;
+  parent: IXMLNode;
+  i,j, intCount, intGrid: Integer;
+
+begin
+  if grdExcel.RowCount = 0 then
+  begin
+    ShowMessage('Werte importieren');
+    exit;
+  end;
+
+  lblXMLCap.Visible:= true;
+
+  doc:= TXMLDocument.Create(nil);
+  doc.LoadFromFile(filename);
+
+  parent:= doc.DocumentElement;
+  intCount:= 0;
+  if edtIndexFrom.Text = '' then intGrid:= 0 else intGrid:= StrToInt(edtIndexFrom.Text);
+
+  for i := 0 to parent.ChildNodes.Count -1 do
+  begin
+    //Namensbezeichnung ändern
+    if (parent.ChildNodes[i].NodeName = 'node') and
+        (parent.ChildNodes[i].ChildNodes.Count > 0) then
+    begin
+      for j := 0 to parent.ChildNodes[i].ChildNodes.Count-1 do
+      begin
+        if (parent.ChildNodes[i].ChildNodes[j].NodeName = 'tag') and
+           (parent.ChildNodes[i].ChildNodes[j].Attributes['k'] = 'name') then
+           begin
+             meoXMLRep.Lines.Add('Knoten #' + IntToStr(i) + ':' + parent.ChildNodes[i].ChildNodes[j].Attributes['v']);
+             parent.ChildNodes[i].ChildNodes[j].Attributes['v']:= grdExcel.Cells[0,intGrid];
+             inc(intCount);
+             if intGrid < grdExcel.RowCount -1 then inc(intGrid);
+           end;
+      end;
+    end;
+
+    //Geschwindigkeit zwischen 30 und 50 belassen
+    if (parent.ChildNodes[i].NodeName = 'way') and
+        (parent.ChildNodes[i].ChildNodes.Count > 0) then
+    begin
+      for j := 0 to parent.ChildNodes[i].ChildNodes.Count-1 do
+      begin
+        if (parent.ChildNodes[i].ChildNodes[j].NodeName = 'tag') and
+           (parent.ChildNodes[i].ChildNodes[j].Attributes['k'] = 'maxspeed') then
+        begin
+            if (parent.ChildNodes[i].ChildNodes[j].Attributes['v'] = '10') or
+               (parent.ChildNodes[i].ChildNodes[j].Attributes['v'] = '0') then
+            begin
+              meoXMLRep.Lines.Add('Knoten #' + IntToStr(i) + ':' + parent.ChildNodes[i].ChildNodes[j].Attributes['v']);
+              parent.ChildNodes[i].ChildNodes[j].Attributes['v']:= '30';
+              inc(intCount);
+              if intGrid < grdExcel.RowCount -1 then inc(intGrid);
+           end;
+        end;
+      end;
+    end;
+
+  end;
+  //Datei speichern
+  doc.SaveToFile(ExtractFilePath(filename) + '\dest.osm');
+  lblXMLCap.Caption:= 'Total amount: ' + IntToStr(intCount);
+end;
+
+procedure TfrmMain.FormCreate(Sender: TObject);
+begin
+  lblXMLCap.Visible:= false;
+  edtIndexFrom.Clear;
+  grdExcel.RowCount:= 0;
+  grdExcel.ColCount:= 0
+end;
+
+end.
