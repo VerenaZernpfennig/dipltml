@@ -1,0 +1,48 @@
+#loginbox {
+	margin-top:40px;
+}
+
+.add-space{
+	margin-bottom: 15px;
+	color: black;
+	font-size: 18px;
+}
+
+.main-body{
+	height: 150px;
+}
+
+.stepper-set{
+	height: 150px;
+	overflow-y:hidden;
+	margin-top: 10px;
+}
+
+.input-width{
+	width: 10px;
+}
+
+.extra_space{
+	height: 200px;
+}
+
+.extra_space_fin{
+	height: 200px;
+}
+
+.getCentered{
+	position:fixed; 
+	left:50%; 
+	top:50%; 
+	margin:-25px 0 0 -30px;
+}
+
+.main-body{
+	width: 99%;
+}
+
+
+
+
+
+
